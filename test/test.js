@@ -124,4 +124,23 @@ describe('fromObject', function() {
         // TODO: test order...
         expect(tree.name).to.equal('Person | Car')
     })
+
+    it('handles recursive types', function() {
+        var branchSchema = {
+            $id: 'branch',
+            title: 'Branch',
+            type: 'object',
+            properties: {
+                subBranch: { $ref: '' }
+            }
+        }
+
+        var tree = fromSchema(branchSchema, branchSchema)
+
+        expect(tree.name).to.equal('Branch')
+        expect(tree.properties.subBranch.definition()).to.equal(tree)
+    })
+
+    xit('detects infinite loop refs', function() {
+    })
 })

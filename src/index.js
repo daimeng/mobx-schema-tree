@@ -1,48 +1,76 @@
 import { types } from 'mobx-state-tree'
 import pointer from 'json-pointer'
 
-export function fromSchema(s, root) {
+// TODO: add validations?
+export function fromSchema(s, root, ctx = {}) {
+    // TODO: register by id to resolve environment
+    if (s.hasOwnProperty('$ref')) {
+        // TODO: handle uri cases
+        var refSchema = pointer.get(root, s.$ref)
 
-    if (s.$ref) {
-        // TODO: handle uri id cases
-        return fromSchema(pointer.get(root, s.$ref))
+        if (ctx.hasOwnProperty(refSchema.$id)) {
+            if (ctx[refSchema.$id]) {
+                return ctx[refSchema.$id]
+            } else {
+                // if currently being resolved
+                return types.late(() => ctx[refSchema.$id])
+            }
+        }
+
+        return fromSchema(refSchema, root, ctx)
+    }
+
+    if (s.hasOwnProperty('$id')) {
+        ctx[s.$id] = null
     }
 
     if (s.allOf) {
         return types.compose(...s.allOf.map(
-            sub => fromSchema(sub, root)
+            sub => fromSchema(sub, root, ctx)
          ))
     }
 
     if (s.oneOf) {
         return types.union(...s.oneOf.map(
-            sub => fromSchema(sub, root)
+            sub => fromSchema(sub, root, ctx)
         ))
         
     }
 
     if (s.anyOf) {
         return types.union(...s.anyOf.map(
-            sub => fromSchema(sub, root)
+            sub => fromSchema(sub, root, ctx)
         ))
     }
 
+    var model
     switch (s.type) {
     case 'null':
-        return fromNull(s, root)
+        model = fromNull(s, root)
+        break;
     case 'boolean':
-        return fromBoolean(s, root)
+        model = fromBoolean(s, root)
+        break;
     case 'array':
-        return fromArray(s, root)
+        model = fromArray(s, root, ctx)
+        break;
     case 'number':
-        return fromNumber(s, root)
+        model = fromNumber(s, root)
+        break;
     case 'string':
-        return fromString(s, root)
+        model = fromString(s, root)
+        break;
     case 'object':
-        return fromObject(s, root)
+        model = fromObject(s, root, ctx)
+        break;
     default:
         // TODO: maybe don't need error here, run meta schema validator beforehand?
     }
+
+    if (s.hasOwnProperty('$id')) {
+        ctx[s.$id] = model
+    }
+    return model
 }
 
 export function fromNull(s, root)  {
@@ -53,7 +81,7 @@ export function fromBoolean(s, root) {
     return types.boolean
 }
 
-export function fromArray(s, root) {
+export function fromArray(s, root, ctx) {
     // var p
     // if (s.hasOwnProperty('minItems')) {
     // }
@@ -61,7 +89,7 @@ export function fromArray(s, root) {
     // }
 
     return types.array(
-        fromSchema(s.items, root)
+        fromSchema(s.items, root, ctx)
     )
 }
 
@@ -85,13 +113,16 @@ export function fromString(s, root) {
     return types.string
 }
 
-export function fromObject(s, root) {
+export function fromObject(s, root, ctx) {
     const props = {}
 
     if (s.properties) {
         for (let key in s.properties) {
-            props[key] = fromSchema(s.properties[key])
+            props[key] = fromSchema(s.properties[key], root, ctx)
         }
+    }
+
+    if (s.required) {
     }
 
     if (s.title) {
