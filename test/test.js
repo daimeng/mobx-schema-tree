@@ -1,6 +1,7 @@
 import { expect } from 'chai'
 import { types } from 'mobx-state-tree'
 import {
+    fromSchema,
     fromString,
     fromNumber,
     fromBoolean,
@@ -83,5 +84,44 @@ describe('fromObject', function() {
         })
 
         expect(tree.name).to.equal('Car')
+    })
+
+    it('handles composed models', function() {
+        var tree = fromSchema({
+            allOf: [{
+                type: 'object',
+                properties: {
+                    name: { type: 'string' }
+                }
+            }, {
+                type: 'object',
+                properties: {
+                    age: { type: 'number' }
+                }
+            }]
+        })
+
+        expect(Object.keys(tree.props)).to.deep.equal(['name', 'age'])
+    })
+
+    it('handles union models', function() {
+        var tree = fromSchema({
+            anyOf: [{
+                title: 'Car',
+                type: 'object',
+                properties: {
+                    brand: { type: 'string' }
+                }
+            }, {
+                title: 'Person',
+                type: 'object',
+                properties: {
+                    name: { type: 'string' }
+                }
+            }]
+        })
+
+        // TODO: test order...
+        expect(tree.name).to.equal('Person | Car')
     })
 })

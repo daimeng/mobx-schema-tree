@@ -8,16 +8,23 @@ export function fromSchema(s, root) {
         return fromSchema(pointer.get(root, s.$ref))
     }
 
-    if (s.anyOf) {
-        
-    }
-
     if (s.allOf) {
+        return types.compose(...s.allOf.map(
+            sub => fromSchema(sub, root)
+         ))
+    }
+
+    if (s.oneOf) {
+        return types.union(...s.oneOf.map(
+            sub => fromSchema(sub, root)
+        ))
         
     }
 
     if (s.anyOf) {
-        
+        return types.union(...s.anyOf.map(
+            sub => fromSchema(sub, root)
+        ))
     }
 
     switch (s.type) {
